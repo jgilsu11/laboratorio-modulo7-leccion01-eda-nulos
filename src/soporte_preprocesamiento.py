@@ -11,6 +11,11 @@ import math
 # -----------------------------------------------------------------------
 import seaborn as sns
 import matplotlib.pyplot as plt
+
+from scipy.stats import zscore # para calcular el z-score
+from sklearn.neighbors import LocalOutlierFactor # para detectar outliers usando el método LOF
+from sklearn.ensemble import IsolationForest # para detectar outliers usando el metodo IF
+from sklearn.neighbors import NearestNeighbors # para calcular la epsilon
 import soporte_preprocesamiento as f
 
 def exploracion_dataframe(dataframe, columna_control):
@@ -152,6 +157,8 @@ def matriz_correlacion(df,tamanio=(10,7)):
 
 
 
+#OUTLIERS
+
 
 def detectar_outliers(df, tamanio=(15,8), color="orange"):
     df_numericas=f.separar_dataframe(df)[0]
@@ -169,3 +176,60 @@ def detectar_outliers(df, tamanio=(15,8), color="orange"):
     
 
     plt.tight_layout()
+
+
+
+
+def identificar_outliers_iqr(df, k=1.5):
+    df_num=df.select_dtypes(include=np.number)
+    dicc_outliers={}
+    for columna in df_num.columns:
+        Q1, Q3= np.nanpercentile(df[columna], (25, 75))
+        iqr= Q3 - Q1
+        limite_superior= Q3 + (iqr * k)
+        limite_inferior= Q1 - (iqr * k)
+
+        condicion_sup= df[columna] > limite_superior
+        condicion_inf= df[columna] < limite_inferior
+        df_outliers= df[condicion_inf | condicion_sup]
+        print(f"La columna {columna.upper()} tiene {df_outliers.shape[0]} outliers")
+        if not df_outliers.empty:
+            dicc_outliers[columna]= df_outliers
+
+    return dicc_outliers    
+
+
+
+def plot_outliers_univariados(df, tipo_grafica, tamanio,bins=20, whis=1.5):
+    df_num=df.select_dtypes(include=np.number)
+
+    fig, axes = plt.subplots(nrows= math.ceil(len(df_num.columns)/ 2), ncols=2, figsize= tamanio)
+    axes=axes.flat
+
+    for indice, columna in enumerate(df_num.columns):
+        if tipo_grafica.lower() =="h":
+            sns.histplot(x= columna, data= df, ax= axes[indice], bins= bins)
+        elif tipo_grafica.lower() == "b":
+            sns.boxplot(x= columna, data= df, ax= axes[indice], whis=whis, flierprops={"markersize" : 4, "markerfacecolor": "red"})
+        else:
+            print("No has elegido una grafica correcta elige h o b")
+        axes[indice].set_title(f"Distribución columna {columna}")
+        axes[indice].set_xlabel("")
+
+    if len(df_num.columns) % 2 !=0:
+        fig.delaxes(axes[-1])
+
+    plt.tight_layout()
+
+
+
+def identificar_outliers_zscore(df, limite_desviaciones =3):
+    df_num=df.select_dtypes(include=np.number)
+    dicc_outliers={}
+    for columna in df_num.columns:
+        condicion_zscore= abs(zscore(df[columna])) >= limite_desviaciones
+        df_outliers= df[condicion_zscore]
+        print(f"La cantidad de outliers para la {columna.upper()} es de {df_outliers.shape[0]} outliers")
+        if not df_outliers.empty:
+            dicc_outliers[columna]= df_outliers
+    return dicc_outliers
