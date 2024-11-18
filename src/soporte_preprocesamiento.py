@@ -718,3 +718,5 @@ class Encoding:
                 self.dataframe[categoria] = self.dataframe[categoria].map(frecuencia)
         
         return self.dataframe
+    
+    
